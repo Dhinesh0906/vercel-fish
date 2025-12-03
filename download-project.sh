@@ -2,53 +2,48 @@
 set -e
 
 REPO="Dhinesh0906/SIH-FISHNET"
-TAG="v1.0.0"
+TAG="v1.1.1"
 ZIP_NAME="FISHnetsih.zip"
 
 BASE_URL="https://github.com/$REPO/releases/download/$TAG"
 
 echo "Downloading full project zip from GitHub Releases..."
-echo "URL: $BASE_URL/$ZIP_NAME"
-
 curl -L "$BASE_URL/$ZIP_NAME" -o project.zip
 
-echo "Unzipping project..."
-# Unzip into a temp folder so we can control what goes where
+echo "Clearing old files (if any)…"
 rm -rf unpacked_project
+rm -rf src public offline-ai dist
+
+echo "Unzipping project..."
 mkdir -p unpacked_project
 unzip -o project.zip -d unpacked_project
 
-echo "Contents of unpacked_project:"
-ls unpacked_project
+echo "Scanning for package.json inside zip…"
+PACKAGE_LOC=$(find unpacked_project -maxdepth 3 -type f -name package.json | head -n 1 || true)
 
-# CASE 1: zip directly contains package.json at top level
-if [ -f unpacked_project/package.json ]; then
-  echo "Found package.json at top level of unpacked_project, moving contents to repo root..."
-  rm -rf src public offline-ai dist
-  cp -R unpacked_project/* .
-# CASE 2: zip contains a folder (e.g. FISHnetsih/) that contains package.json
-else
-  INNER_DIR=$(find unpacked_project -maxdepth 2 -type f -name package.json -printf '%h\n' | head -n 1 || true)
-
-  if [ -z "$INNER_DIR" ]; then
-    echo "ERROR: Could not find package.json inside project zip."
-    ls -R unpacked_project
-    exit 1
-  fi
-
-  echo "Found package.json inside: $INNER_DIR"
-  echo "Moving that project to repo root..."
-
-  rm -rf src public offline-ai dist
-  cp -R "$INNER_DIR"/* .
-fi
-
-echo "Final project root contents:"
-ls
-
-if [ ! -f package.json ]; then
-  echo "ERROR: package.json still not found in repo root after moving."
+if [ -z "$PACKAGE_LOC" ]; then
+  echo "ERROR: package.json not found inside the zip."
+  ls -R unpacked_project
   exit 1
 fi
 
-echo "Project restore complete."
+# Folder that contains package.json
+PROJECT_DIR=$(dirname "$PACKAGE_LOC")
+
+echo "Found project at: $PROJECT_DIR"
+echo "Copying project files into root…"
+
+cp -R $PROJECT_DIR/* .
+
+echo "Project copied. Cleaning temp folder…"
+rm -rf unpacked_project
+
+echo "Final check:"
+ls -l
+
+if [ ! -f package.json ]; then
+  echo "ERROR: package.json missing after copy. Build cannot continue."
+  exit 1
+fi
+
+echo "Project restore COMPLETE."
