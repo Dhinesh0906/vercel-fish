@@ -1,0 +1,4 @@
+{
+  "buildCommand": "bash download-project.sh && npm install && npm run build",
+  "outputDirectory": "dist"
+}
