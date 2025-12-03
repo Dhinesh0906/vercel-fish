@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-REPO="Dhinesh0906/SIH-FISHNET"
-TAG="v1.1.1"
+REPO="Dhinesh0906/vercel-fish"
+TAG="v.0.0"
 ZIP_NAME="FISHnetsih.zip"
 
 BASE_URL="https://github.com/$REPO/releases/download/$TAG"
