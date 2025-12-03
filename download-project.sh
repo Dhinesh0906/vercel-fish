@@ -10,37 +10,61 @@ BASE_URL="https://github.com/$REPO/releases/download/$TAG/$ZIP_NAME"
 echo "Downloading full project zip from GitHub Releases..."
 curl -L "$BASE_URL" -o project.zip
 
-echo "Clearing old files (if any)…"
+echo "Clearing old files…"
 rm -rf src public offline-ai dist node_modules unpacked_project
 
-echo "Unzipping project..."
+echo "Unzipping zip..."
 mkdir -p unpacked_project
 unzip -o project.zip -d unpacked_project
 
-echo "Scanning for package.json inside zip…"
-PACKAGE_LOC=$(find unpacked_project -type f -name package.json | head -n 1 || true)
+echo "Searching for package.json at ANY depth…"
+PACKAGE_LOC=$(find unpacked_project -maxdepth 5 -type f -name package.json | head -n 1 || true)
 
 if [ -z "$PACKAGE_LOC" ]; then
-  echo "ERROR: package.json not found inside the zip."
-  echo "Dumping extracted structure..."
+  echo "❌ ERROR: No package.json found in ANY folder level."
   ls -R unpacked_project
   exit 1
 fi
 
+echo "Found package.json at: $PACKAGE_LOC"
+
 PROJECT_DIR=$(dirname "$PACKAGE_LOC")
 
-echo "Found project folder at: $PROJECT_DIR"
-echo "Copying project files into root…"
+echo "Copying project files from folder:"
+echo "$PROJECT_DIR"
 
+# Clean current root before copying
+rm -rf src public offline-ai dist package.json vite.config.* tsconfig.* index.html
+
+# Copy the entire project directory CONTENTS into root
 cp -R "$PROJECT_DIR"/* .
 
-echo "Cleaning temp folder…"
+echo "Verifying package.json at root…"
+if [ ! -f package.json ]; then
+  echo "❌ First-level copy failed. Retrying deeper search..."
+
+  PACKAGE_LOC=$(find unpacked_project -maxdepth 8 -type f -name package.json | head -n 1 || true)
+  PROJECT_DIR=$(dirname "$PACKAGE_LOC")
+
+  if [ -z "$PACKAGE_LOC" ]; then
+    echo "❌ Still no package.json after second search. Project zip is invalid."
+    exit 1
+  fi
+
+  echo "Retrying copy from: $PROJECT_DIR"
+
+  cp -R "$PROJECT_DIR"/* .
+fi
+
+echo "Removing temp folders…"
 rm -rf unpacked_project project.zip
 
-echo "Final check:"
+echo "ROOT NOW CONTAINS:"
+ls -l
+
 if [ ! -f package.json ]; then
-  echo "ERROR: package.json missing after copy. Build cannot continue."
+  echo "❌ FINAL ERROR: package.json STILL missing in root."
   exit 1
 fi
 
-echo "Project restore COMPLETE."
+echo "🎉 SUCCESS: Project restored at root and ready to build!"
